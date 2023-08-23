@@ -2,7 +2,7 @@
 
 import lightning as L
 import torch
-from shared_utilities import LightningModel, MNISTDataModule, PyTorchMLP
+from shared_utilities import LightningModel, MNISTDataModule, PyTorchMLP, AmesHousingDataModule
 from watermark import watermark
 
 if __name__ == "__main__":
@@ -12,9 +12,10 @@ if __name__ == "__main__":
 
     torch.manual_seed(123)
 
-    dm = MNISTDataModule()
+    # dm = MNISTDataModule()
+    dm = AmesHousingDataModule()
 
-    pytorch_model = PyTorchMLP(num_features=784, num_classes=10)
+    pytorch_model = PyTorchMLP(num_features=3)
 
     lightning_model = LightningModel(model=pytorch_model, learning_rate=0.05)
 
@@ -23,11 +24,20 @@ if __name__ == "__main__":
     )
     trainer.fit(model=lightning_model, datamodule=dm)
 
-    train_acc = trainer.validate(dataloaders=dm.train_dataloader())[0]["val_acc"]
-    val_acc = trainer.validate(datamodule=dm)[0]["val_acc"]
-    test_acc = trainer.test(datamodule=dm)[0]["test_acc"]
+    # train_acc = trainer.validate(dataloaders=dm.train_dataloader())[0]["val_acc"]
+    # val_acc = trainer.validate(datamodule=dm)[0]["val_acc"]
+    # test_acc = trainer.test(datamodule=dm)[0]["test_acc"]
+    # print(
+    #     f"Train Acc {train_acc*100:.2f}%"
+    #     f" | Val Acc {val_acc*100:.2f}%"
+    #     f" | Test Acc {test_acc*100:.2f}%"
+    # )
+
+    train_mse = trainer.validate(dataloaders=dm.train_dataloader())[0]["val_mse"]
+    val_mse = trainer.validate(datamodule=dm)[0]["val_mse"]
+    test_mse = trainer.test(datamodule=dm)[0]["test_mse"]
     print(
-        f"Train Acc {train_acc*100:.2f}%"
-        f" | Val Acc {val_acc*100:.2f}%"
-        f" | Test Acc {test_acc*100:.2f}%"
+        f"Train MSE {train_mse:.2f}"
+        f" | Val MSE {val_mse:.2f}"
+        f" | Test MSE {test_mse*100:.2f}"
     )

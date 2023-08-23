@@ -5,13 +5,14 @@ from sklearn.preprocessing import StandardScaler
 import torch
 import torch.nn.functional as F
 import torchmetrics
+import os
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataset import random_split
 from torchvision import datasets, transforms
 
 
 class PyTorchMLP(torch.nn.Module):
-    def __init__(self, num_features, num_classes):
+    def __init__(self, num_features):
         super().__init__()
 
         self.all_layers = torch.nn.Sequential(
@@ -22,12 +23,12 @@ class PyTorchMLP(torch.nn.Module):
             torch.nn.Linear(50, 25),
             torch.nn.ReLU(),
             # output layer
-            torch.nn.Linear(25, num_classes),
+            torch.nn.Linear(25, 1),
         )
 
     def forward(self, x):
-        x = torch.flatten(x, start_dim=1)
-        logits = self.all_layers(x)
+        logits = self.all_layers(x).flatten()
+
         return logits
 
 
@@ -38,42 +39,42 @@ class LightningModel(L.LightningModule):
         self.learning_rate = learning_rate
         self.model = model
 
-        self.train_acc = torchmetrics.Accuracy(task="multiclass", num_classes=10)
-        self.val_acc = torchmetrics.Accuracy(task="multiclass", num_classes=10)
-        self.test_acc = torchmetrics.Accuracy(task="multiclass", num_classes=10)
+        self.train_mse = torchmetrics.MeanSquaredError()
+        self.val_mse = torchmetrics.MeanSquaredError()
+        self.test_mse = torchmetrics.MeanSquaredError()
 
     def forward(self, x):
         return self.model(x)
 
     def _shared_step(self, batch):
-        features, true_labels = batch
-        logits = self(features)
+        features, true_values = batch
+        predicted_values = self(features)
 
-        loss = F.cross_entropy(logits, true_labels)
-        predicted_labels = torch.argmax(logits, dim=1)
-        return loss, true_labels, predicted_labels
+        loss = F.mse_loss(predicted_values, true_values)
+        # predicted_values = torch.argmax(logits, dim=1)
+        return loss, true_values, predicted_values
 
     def training_step(self, batch, batch_idx):
-        loss, true_labels, predicted_labels = self._shared_step(batch)
+        loss, true_values, predicted_values = self._shared_step(batch)
 
         self.log("train_loss", loss)
-        self.train_acc(predicted_labels, true_labels)
+        self.train_mse(predicted_values, true_values)
         self.log(
-            "train_acc", self.train_acc, prog_bar=True, on_epoch=True, on_step=False
+            "train_mse", self.train_mse, prog_bar=True, on_epoch=True, on_step=False
         )
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, true_labels, predicted_labels = self._shared_step(batch)
+        loss, true_values, predicted_values = self._shared_step(batch)
 
         self.log("val_loss", loss, prog_bar=True)
-        self.val_acc(predicted_labels, true_labels)
-        self.log("val_acc", self.val_acc, prog_bar=True)
+        self.val_mse(predicted_values, true_values)
+        self.log("val_mse", self.val_mse, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
-        _, true_labels, predicted_labels = self._shared_step(batch)
-        self.test_acc(predicted_labels, true_labels)
-        self.log("test_acc", self.test_acc)
+        _, true_values, predicted_values = self._shared_step(batch)
+        self.test_mse(predicted_values, true_values)
+        self.log("test_mse", self.test_mse)
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=self.learning_rate)

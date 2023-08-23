@@ -7,6 +7,14 @@ import pandas as pd
 import torch
 from shared_utilities import LightningModel, MNISTDataModule, PyTorchMLP
 from watermark import watermark
+from lightning.pytorch.callbacks import Callback
+
+class CustomCallback(Callback):
+    def __init__(self):
+        self.diff = []
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        self.diff.append(trainer.callback_metrics["train_acc"] - trainer.callback_metrics["val_acc"])
 
 if __name__ == "__main__":
 
@@ -20,10 +28,12 @@ if __name__ == "__main__":
     pytorch_model = PyTorchMLP(num_features=784, num_classes=10)
 
     lightning_model = LightningModel(model=pytorch_model, learning_rate=0.05)
+    my_callback = CustomCallback()
 
     trainer = L.Trainer(
         max_epochs=10, accelerator="cpu", devices=1, deterministic=True,
         logger=CSVLogger(save_dir="logs/", name="my-model"),
+        callbacks=[my_callback],
     )
     trainer.fit(model=lightning_model, datamodule=dm)
 
@@ -35,6 +45,9 @@ if __name__ == "__main__":
         f" | Val Acc {val_acc*100:.2f}%"
         f" | Test Acc {test_acc*100:.2f}%"
     )
+
+for diff in my_callback.diff:
+    print(f"Train-Validation difference: {diff * 100:.2f}%")
 
 # Plotting the logs
 metrics = pd.read_csv(f"{trainer.logger.log_dir}/metrics.csv")

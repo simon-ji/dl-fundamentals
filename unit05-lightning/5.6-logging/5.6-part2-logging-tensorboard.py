@@ -23,7 +23,7 @@ if __name__ == "__main__":
         accelerator="cpu",
         devices="auto",
         deterministic=True,
-        default_root_dir="~/Desktop",  # New !!!
+        # default_root_dir="~/Desktop",  # New !!!
     )
 
     trainer.fit(model=lightning_model, datamodule=dm)
