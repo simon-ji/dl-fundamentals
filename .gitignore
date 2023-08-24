@@ -134,4 +134,5 @@ dmypy.json
 # Data
 data/
 mnist/
+logs/
 
